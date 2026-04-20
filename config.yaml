@@ -1,0 +1,20 @@
+system:
+  env: "${DEMA_ENV:prod}"
+  port: "${DEMA_PORT:8090}"
+  log_level: "${DEMA_LOG_LEVEL:info}"
+
+llm_provider:
+  base_url: "${LLM_BASE_URL:http://localhost:1234/v1}"
+  api_key: "${LLM_API_KEY:not-needed-for-local}"
+  model_name: "${LLM_MODEL_NAME:hermes-3-llama-3.1}"
+  max_tokens: "${LLM_MAX_TOKENS:4096}"
+  temperature: "${LLM_TEMPERATURE:0.2}"
+
+gateway:
+  url: "${GATEWAY_URL:http://localhost:8080}"
+  auth_token: "${GATEWAY_SECRET:null}"
+  skills_server_name: "${GATEWAY_SKILLS_SERVER:skills-provider}"
+
+memory:
+  p2_summary_threshold_tokens: "${MEMORY_P2_THRESHOLD:2000}"
+  p3_ttl_seconds: "${MEMORY_P3_TTL:3600}"
