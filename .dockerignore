@@ -1,0 +1,12 @@
+.venv
+__pycache__
+*.pyc
+.git
+.gitignore
+.env
+*.egg-info
+.pytest_cache
+.mypy_cache
+coverage.xml
+htmlcov
+.DS_Store
