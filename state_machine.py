@@ -177,9 +177,8 @@ class StateMachine:
     def get_allowed_transitions(self, current_status: PlanStatus) -> List[PlanStatus]:
         """Get all allowed next statuses from current status."""
         allowed = set()
-        for key, transitions in self.transitions.items():
-            _, status = key.rsplit("_", 1)
-            if status == current_status.value:
-                for t in transitions:
+        for t_list in self.transitions.values():
+            for t in t_list:
+                if t.from_status == current_status:
                     allowed.add(t.to_status)
         return list(allowed)

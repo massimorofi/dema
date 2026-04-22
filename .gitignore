@@ -137,3 +137,6 @@ Thumbs.db
 *.log
 #.env
 config.local.yaml
+test-report.json
+test-report.txt
+test-results.xml

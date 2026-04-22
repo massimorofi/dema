@@ -4,6 +4,7 @@ from typing import Optional, Dict, Any
 from fastapi import FastAPI, HTTPException, Body
 from pydantic import BaseModel
 from orchestrator import Orchestrator
+from models import PlanStatus
 
 
 logger = logging.getLogger(__name__)
@@ -94,10 +95,12 @@ def create_api(orchestrator: Orchestrator) -> FastAPI:
                 "tenant_id": plan.tenant_id,
                 "run_id": plan.run_id,
             }
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"[API] Error creating plan: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+
     @app.post("/v1/plans/{plan_id}/stages")
     async def add_stage(plan_id: str, request: AddStageRequest):
         """Add a stage to an existing plan."""
@@ -108,102 +111,121 @@ def create_api(orchestrator: Orchestrator) -> FastAPI:
                 request.description,
                 request.required_skills,
             )
-            
+
             if not stage:
                 raise HTTPException(status_code=404, detail="Plan not found")
-            
+
             return {"status": "success", "stage": stage.to_dict()}
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"[API] Error adding stage: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+
     @app.post("/v1/plans/{plan_id}/run")
     async def run_plan(plan_id: str, request: RunPlanRequest):
         """
         Trigger or resume execution of a plan.
-        
+
         - **mode**: "auto" for continuous execution, "step" for step-by-step
         """
         try:
             plan = orchestrator.plans.get(plan_id)
             if not plan:
                 raise HTTPException(status_code=404, detail="Plan not found")
-            
-            success = orchestrator.start_execution(plan_id, mode=request.mode)
-            
-            if success:
-                return {"status": "executing", "plan_id": plan_id}
-            else:
-                raise HTTPException(status_code=400, detail="Failed to start execution")
+
+            # Check if plan is in a state that can start execution
+            if plan.status not in (PlanStatus.CREATED, PlanStatus.PLANNING, PlanStatus.EXECUTING, PlanStatus.PAUSED):
+                raise HTTPException(status_code=400, detail=f"Plan not in a valid state to run: {plan.status.value}")
+
+            orchestrator.start_execution(plan_id, mode=request.mode)
+
+            return plan.to_dict()
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"[API] Error running plan: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+
     @app.get("/v1/plans/{plan_id}/state")
     async def get_plan_state(plan_id: str):
         """
         Get the current state of a plan.
-        
+
         Returns P0-P3 context tiers, current stage, and audit logs.
         """
         try:
             state = orchestrator.get_plan_state(plan_id)
-            
+
             if not state:
                 raise HTTPException(status_code=404, detail="Plan not found")
-            
+
             return state
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"[API] Error getting plan state: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+
     @app.get("/v1/plans/{plan_id}")
     async def get_plan(plan_id: str):
         """Get plan details."""
         try:
             plan = orchestrator.plans.get(plan_id)
-            
+
             if not plan:
                 raise HTTPException(status_code=404, detail="Plan not found")
-            
+
             return plan.to_dict()
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"[API] Error getting plan: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+
     @app.post("/v1/plans/{plan_id}/pause")
     async def pause_plan(plan_id: str):
         """Pause plan execution."""
         try:
+            if plan_id not in orchestrator.plans:
+                raise HTTPException(status_code=404, detail="Plan not found")
+
             success = orchestrator.pause_plan(plan_id)
-            
+
             if success:
                 return {"status": "paused", "plan_id": plan_id}
             else:
                 raise HTTPException(status_code=400, detail="Failed to pause plan")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"[API] Error pausing plan: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+
     @app.post("/v1/plans/{plan_id}/resume")
     async def resume_plan(plan_id: str):
         """Resume paused plan execution."""
         try:
+            if plan_id not in orchestrator.plans:
+                raise HTTPException(status_code=404, detail="Plan not found")
+
             success = orchestrator.resume_plan(plan_id)
-            
+
             if success:
                 return {"status": "executing", "plan_id": plan_id}
             else:
                 raise HTTPException(status_code=400, detail="Failed to resume plan")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"[API] Error resuming plan: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+
     @app.post("/v1/approvals/{approval_id}")
     async def handle_approval(approval_id: str, request: ApprovalResponse):
         """
         Provide human approval for a high-risk decision.
-        
+
         - **approved**: Boolean approval status
         - **approval_token**: Optional token to include in the context
         """
@@ -213,7 +235,7 @@ def create_api(orchestrator: Orchestrator) -> FastAPI:
                 request.approved,
                 request.approval_token,
             )
-            
+
             if success:
                 return {
                     "status": "processed",
@@ -222,19 +244,23 @@ def create_api(orchestrator: Orchestrator) -> FastAPI:
                 }
             else:
                 raise HTTPException(status_code=400, detail="Failed to process approval")
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"[API] Error processing approval: {e}")
             raise HTTPException(status_code=500, detail=str(e))
-    
+
     @app.get("/v1/plans/{plan_id}/audit")
     async def get_audit_logs(plan_id: str):
         """Get audit logs for a plan."""
         try:
             if plan_id not in orchestrator.plans:
                 raise HTTPException(status_code=404, detail="Plan not found")
-            
+
             logs = orchestrator.audit_store.to_dict(plan_id)
             return {"plan_id": plan_id, "logs": logs}
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"[API] Error getting audit logs: {e}")
             raise HTTPException(status_code=500, detail=str(e))

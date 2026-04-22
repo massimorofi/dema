@@ -60,7 +60,7 @@ class Plan:
         valid_transitions = {
             PlanStatus.CREATED: [PlanStatus.PLANNING],
             PlanStatus.PLANNING: [PlanStatus.EXECUTING, PlanStatus.FAILED],
-            PlanStatus.EXECUTING: [PlanStatus.AWAITING_HITL, PlanStatus.PAUSED, PlanStatus.COMPLETED, PlanStatus.FAILED],
+            PlanStatus.EXECUTING: [PlanStatus.EXECUTING, PlanStatus.AWAITING_HITL, PlanStatus.PAUSED, PlanStatus.COMPLETED, PlanStatus.FAILED],
             PlanStatus.AWAITING_HITL: [PlanStatus.EXECUTING, PlanStatus.PAUSED, PlanStatus.FAILED],
             PlanStatus.PAUSED: [PlanStatus.EXECUTING],
             PlanStatus.COMPLETED: [PlanStatus.CREATED],

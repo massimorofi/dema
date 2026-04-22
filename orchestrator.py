@@ -316,9 +316,10 @@ class Orchestrator:
             if not self.state_machine.transition(plan, "API_RESUME"):
                 logger.error(f"[Orchestrator] Failed to resume plan")
                 return False
-            
+
+            self.iteration_count[plan_id] = 0
             self.audit_store.log_event(plan_id, "APPROVAL_GRANTED", {"approval_id": approval_id})
-            
+
             # Continue execution
             return self.run_execution_loop(plan_id)
         else:
@@ -352,13 +353,14 @@ class Orchestrator:
         if not plan:
             logger.error(f"[Orchestrator] Plan not found: {plan_id}")
             return False
-        
+
         if plan.status == PlanStatus.PAUSED:
             if self.state_machine.transition(plan, "API_RESUME"):
+                self.iteration_count[plan_id] = 0
                 self.audit_store.log_event(plan_id, "PLAN_RESUMED", {})
                 logger.info(f"[Orchestrator] Plan resumed: {plan_id}")
                 return self.run_execution_loop(plan_id)
-        
+
         return False
 
     def get_plan_state(self, plan_id: str) -> Optional[dict]:
